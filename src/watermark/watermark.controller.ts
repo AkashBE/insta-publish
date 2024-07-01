@@ -1,27 +1,30 @@
-import { Controller, Post, Req, Res, Body, Delete } from '@nestjs/common';
-import { diskStorage } from 'multer';
-import multer from 'multer';
+import { Controller, Post, UploadedFiles, Body, Delete, Req, Res, UseInterceptors } from '@nestjs/common';
 import { ApiConsumes, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WatermarkService } from './watermark.service';
 import { UploadDto } from './upload.dto';
 import { ConfigService } from '@nestjs/config';
-import { Request, Response } from 'express';
+import { diskStorage } from 'multer';
+import multer from 'multer';
 import * as fs from 'fs-extra';
 import { ClearDirsDto } from './clear-dirs.dto';
+import { Request, Response } from 'express';
 
 @ApiTags('watermark')
 @Controller('watermark')
 export class WatermarkController {
     private readonly uploadsDir: string;
     private readonly watermarkDir: string;
+    private readonly watermarkText: string;
     private readonly upload: multer.Multer;
 
     constructor(
         private readonly watermarkService: WatermarkService,
         private configService: ConfigService,
     ) {
-        this.uploadsDir = this.configService.get<string>('UPLOADS_DIR');
-        this.watermarkDir = this.configService.get<string>('WATERMARK_DIR');
+        this.uploadsDir = this.configService.get<string>('UPLOADS_DIR', './uploads');
+        this.watermarkDir = this.configService.get<string>('WATERMARK_DIR', './watermarked');
+        this.watermarkText = this.configService.get<string>('WATERMARK_TEXT', 'Default Watermark Text');
+
         const storage = diskStorage({
             destination: (req, file, cb) => {
                 cb(null, this.uploadsDir);
@@ -36,27 +39,32 @@ export class WatermarkController {
     }
 
     @Post('upload')
-    @ApiOperation({ summary: 'Upload an image and apply watermark' })
+    @ApiOperation({ summary: 'Upload images and apply watermark' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
-        description: 'Image to upload and watermark text',
+        description: 'Images to upload and watermark',
         type: UploadDto,
     })
-    @ApiResponse({ status: 201, description: 'Image watermarked successfully' })
-    async uploadImage(@Req() req: Request, @Res() res: Response) {
-        this.upload.single('image')(req, res, async (err: any) => {
+    @ApiResponse({ status: 201, description: 'Images watermarked successfully' })
+    async uploadImages(@Req() req: Request, @Res() res: Response) {
+        this.upload.array('images', 10)(req, res, async (err: any) => {
             if (err) {
                 return res.status(400).json({ message: 'File upload error', error: err.message });
             }
 
-            const file = req.file;
-            if (!file) {
-                return res.status(400).json({ message: 'No file uploaded' });
+            const files = req.files as Express.Multer.File[];
+            if (!files || files.length === 0) {
+                return res.status(400).json({ message: 'No files uploaded' });
             }
 
-            const outputPath = `${this.watermarkDir}/${file.filename}`;
-            await this.watermarkService.applyWatermark(file.path, outputPath);
-            return res.status(201).json({ message: 'Image watermarked successfully', path: outputPath });
+            const promises = files.map(file => {
+                const outputPath = `${this.watermarkDir}/${file.filename}`;
+                return this.watermarkService.applyWatermark(file.path, outputPath);
+            });
+
+            await Promise.all(promises);
+
+            return res.status(201).json({ message: 'Images watermarked successfully' });
         });
     }
 
@@ -68,7 +76,7 @@ export class WatermarkController {
     })
     @ApiResponse({ status: 200, description: 'Directories cleared successfully' })
     async clearDirectories(@Body() clearDirsDto: ClearDirsDto) {
-        const { clearUploads, clearWatermarked } = clearDirsDto;
+        const { clearUploads = true, clearWatermarked = true } = clearDirsDto;
 
         try {
             if (clearUploads) {
