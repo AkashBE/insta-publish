@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 
 @Module({
   controllers: [WatermarkController],
-  providers: [WatermarkService, ConfigService]
+  providers: [WatermarkService, ConfigService],
+  exports: [WatermarkService],
 })
 export class WatermarkModule { }

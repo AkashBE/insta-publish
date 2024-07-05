@@ -1,4 +1,4 @@
-import { Controller, Post, UploadedFiles, Body, Delete, Req, Res, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Body, Delete, Req, Res } from '@nestjs/common';
 import { ApiConsumes, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WatermarkService } from './watermark.service';
 import { UploadDto } from './upload.dto';
@@ -14,16 +14,14 @@ import { Request, Response } from 'express';
 export class WatermarkController {
     private readonly uploadsDir: string;
     private readonly watermarkDir: string;
-    private readonly watermarkText: string;
     private readonly upload: multer.Multer;
 
     constructor(
         private readonly watermarkService: WatermarkService,
         private configService: ConfigService,
     ) {
-        this.uploadsDir = this.configService.get<string>('UPLOADS_DIR', './uploads');
-        this.watermarkDir = this.configService.get<string>('WATERMARK_DIR', './watermarked');
-        this.watermarkText = this.configService.get<string>('WATERMARK_TEXT', 'Default Watermark Text');
+        this.uploadsDir = this.configService.get<string>('UPLOADS_DIR');
+        this.watermarkDir = this.configService.get<string>('WATERMARK_DIR');
 
         const storage = diskStorage({
             destination: (req, file, cb) => {
