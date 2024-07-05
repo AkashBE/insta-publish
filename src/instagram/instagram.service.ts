@@ -1,43 +1,75 @@
-// src/instagram/instagram.service.ts
-
 import { Injectable } from '@nestjs/common';
+import { IgApiClient } from 'instagram-private-api';
 import axios from 'axios';
+import sharp from 'sharp';
+import { WatermarkService } from '../watermark/watermark.service';
+import * as fs from 'fs';
 import { ConfigService } from '@nestjs/config';
-import { User } from './interfaces/user.interface';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class InstagramService {
-    constructor(private readonly configService: ConfigService) { }
+    private readonly uploadsDir: string;
+    private readonly watermarkDir: string;
+    private ig: IgApiClient;
 
-    async handleAuthCallback(req): Promise<User> {
-        // Handle authentication callback logic
-        const { accessToken, profile } = req.user;
-        return { accessToken, ...profile };
+    constructor(
+        private readonly watermarkService: WatermarkService,
+        private configService: ConfigService,
+    ) {
+        this.uploadsDir = this.configService.get<string>('UPLOADS_DIR');
+        this.watermarkDir = this.configService.get<string>('WATERMARK_DIR');
+        this.ig = new IgApiClient();
     }
 
-    async uploadImage(image: Express.Multer.File, caption: string, accessToken: string): Promise<void> {
-        // Convert Buffer to Blob
-        const blob = new Blob([image.buffer], { type: image.mimetype });
+    async login(username: string, password: string): Promise<void> {
+        this.ig.state.generateDevice(username);
+        await this.ig.account.login(username, password);
+    }
 
-        // Create FormData and append data
-        const formData = new FormData();
-        formData.append('image', blob, image.originalname);
-        formData.append('caption', caption);
+    async downloadImage(url: string, outputPath: string) {
+        const response = await axios({
+            url,
+            responseType: 'stream',
+        });
 
+        return new Promise<void>((resolve, reject) => {
+            const writer = fs.createWriteStream(outputPath);
+            response.data.pipe(writer);
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+    }
+
+    async postToInstagram(imageUrl: string, caption: string, tags: string): Promise<void> {
         try {
-            const response = await axios.post('https://graph.instagram.com/me/media', formData, {
-                params: {
-                    access_token: accessToken,
-                },
-                headers: {
-                    'Content-Type': 'multipart/form-data', // Set content type as multipart form data
-                },
-            });
+            const uniqueId = uuidv4();
+            const imagePath = `${this.uploadsDir}/${uniqueId}_original.jpg`;
+            const watermarkedPath = `${this.watermarkDir}/${uniqueId}_watermarked.jpg`;
+            await this.downloadImage(imageUrl, imagePath);
 
-            // Handle success or error responses
-            console.log('Instagram API response:', response.data);
+            /* legacy code to load image buffer from url
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const imageBuffer = Buffer.from(response.data, 'binary');
+            */
+
+            await this.watermarkService.applyWatermark(imagePath, watermarkedPath);
+
+            const imageBuffer = fs.readFileSync(watermarkedPath);
+
+            const processedImage = await sharp(imageBuffer).jpeg().toBuffer();
+
+            // Construct the caption with multiple lines
+            const fullCaption = `${caption}${this.configService.get<string>('CAPTION_TEMPLATE')} ${tags}
+`;
+            await this.ig.publish.photo({
+                file: processedImage,
+                caption: fullCaption.trim(),
+            });
+            // fs.unlinkSync(imagePath);
+            // fs.unlinkSync(watermarkedPath);
         } catch (error) {
-            console.error('Error uploading image to Instagram:', error.response?.data || error.message);
+            console.error('Error posting to Instagram:', error);
             throw error;
         }
     }

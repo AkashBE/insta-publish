@@ -1,57 +1,145 @@
 ```markdown
-# Watermark Service API
+# Instagram Posting Service with Watermark
 
-This project is a Nest.js application that provides an API to upload images, apply watermarks, and manage uploaded and watermarked images. It includes functionalities to clear the directories where the images are stored.
+This NestJS application provides a service to watermark images and post them to Instagram. The service can handle image watermarking with a custom logo and text, and then publish the watermarked image to Instagram. It includes functionalities to upload images, apply watermarks, manage uploaded and watermarked images, and clear the directories where the images are stored.
 
 ## Table of Contents
 
+- [Features](#features)
 - [Installation](#installation)
+- [Configuration](#configuration)
 - [Running the Application](#running-the-application)
 - [API Endpoints](#api-endpoints)
   - [Upload Image and Apply Watermark](#upload-image-and-apply-watermark)
+  - [Post Image to Instagram](#post-image-to-instagram)
   - [Clear Directories](#clear-directories)
 - [Environment Variables](#environment-variables)
 - [DTOs](#dtos)
   - [UploadDto](#uploaddto)
   - [ClearDirsDto](#cleardirsdto)
 - [Service Methods](#service-methods)
+- [PM2 Setup](#pm2-setup)
+- [Development](#development)
 - [License](#license)
+
+## Features
+
+- Watermark images with a custom logo and text.
+- Post images to Instagram.
+- Read captions from a template file.
+- Swagger UI for API documentation.
+- PM2 configuration for process management.
 
 ## Installation
 
+### Prerequisites
+
+- Node.js
+- npm
+
+### Steps
+
 1. Clone the repository:
 
-   ```bash
-   git clone https://github.com/yourusername/watermark-service.git
-   cd watermark-service
-   ```
+    ```bash
+    git clone <repository_url>
+    cd <repository_directory>
+    ```
 
 2. Install dependencies:
 
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm install
+    ```
 
-3. Create a `.env` file in the root of your project and add the necessary environment variables:
+3. Install global dependencies:
 
-   ```
-   NODE_ENV=development
-   PORT=3000
-   UPLOADS_DIR=./uploads
-   WATERMARK_DIR=./watermarked
-   ```
+    ```bash
+    npm install -g @nestjs/cli ts-node tsconfig-paths nodemon pm2
+    ```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following content:
+
+```env
+NODE_ENV=development
+PORT=4000
+IG_USERNAME=your_instagram_username
+IG_PASSWORD=your_instagram_password
+LOGO_PATH=path_to_logo_file
+LOGO_TEXT=YourLogoText
+CAPTION_TEMPLATE=caption-template.txt
+UPLOADS_DIR=./uploads
+WATERMARK_DIR=./watermarked
+```
+
+### Nodemon Configuration
+
+Create a `nodemon.json` file in the root directory:
+
+```json
+{
+  "watch": ["src", ".env"],
+  "ext": "ts,js,json,env",
+  "ignore": ["node_modules"],
+  "exec": "ts-node -r tsconfig-paths/register src/main.ts"
+}
+```
+
+### Caption Template
+
+Create a `caption-template.txt` file in the root directory with your caption content:
+
+```text
+Amidst the serenity of the red flower valley, bravery stands tall. 🌺💪 
+.
+.
+.
+.
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+
+Follow @glowtail.ai for more!  ❤
+
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+.
+.
+.
+Hi-Res wallpapers are available on my Kofi page ❤
+.
+.
+.
+.
+.
+
+#aiart #midjourney
+```
 
 ## Running the Application
 
 To start the application, run:
 
 ```bash
-npm run start
+npm run start:dev
 ```
 
-The application will be available at `http://localhost:3000`.
+The application will be available at `http://localhost:4000`.
+
+### Using PM2 for Process Management
+
+Start the application with PM2:
+
+```bash
+pm2 start ecosystem.config.js
+```
 
 ## API Endpoints
+
+### Swagger UI
+
+Access the Swagger UI for API documentation at: `http://localhost:4000/api`
 
 ### Upload Image and Apply Watermark
 
@@ -64,6 +152,21 @@ The application will be available at `http://localhost:3000`.
 - **Response:**
   - `201 Created`: Image watermarked successfully.
   - `400 Bad Request`: File upload error or no file uploaded.
+
+### Post Image to Instagram
+
+- **Endpoint:** `POST /instagram/postImage`
+- **Description:** Posts a watermarked image to Instagram.
+- **Consumes:** `application/json`
+- **Request Body:**
+    ```json
+    {
+      "imageUrl": "https://example.com/image.jpg"
+    }
+    ```
+- **Response:**
+  - `200 OK`: Image posted successfully to Instagram.
+  - `500 Internal Server Error`: Error posting image to Instagram.
 
 ### Clear Directories
 
@@ -80,6 +183,11 @@ The application will be available at `http://localhost:3000`.
 
 - `NODE_ENV`: The environment in which the application is running.
 - `PORT`: The port on which the application will run.
+- `IG_USERNAME`: Your Instagram username.
+- `IG_PASSWORD`: Your Instagram password.
+- `LOGO_PATH`: Path to the watermark logo file.
+- `LOGO_TEXT`: Text to include in the watermark.
+- `CAPTION_TEMPLATE`: Path to the caption template file.
 - `UPLOADS_DIR`: The directory where uploaded images are stored.
 - `WATERMARK_DIR`: The directory where watermarked images are stored.
 
@@ -134,9 +242,59 @@ export class ClearDirsDto {
 - **clearDirectories(dirPath: string): Promise<void>**
   - Clears the specified directory.
 
+### InstagramService
+
+- **postToInstagram(imagePath: string, caption: string): Promise<void>**
+  - Posts the specified image to Instagram with the given caption.
+
+## PM2 Setup
+
+### Ecosystem File
+
+Create an `ecosystem.config.js` file in the root directory:
+
+```javascript
+module.exports = {
+  apps: [
+    {
+      name: 'instagram-service',
+      script: 'dist/main.js',
+      watch: true,
+      ignore_watch: ['node_modules', 'src', '.env'],
+      env: {
+        NODE_ENV: 'development',
+      },
+      env_production: {
+        NODE_ENV: 'production',
+      },
+    },
+  ],
+};
+```
+
+### Start with PM2
+
+Start the application with PM2:
+
+```bash
+pm2 start ecosystem.config.js
+```
+
+## Development
+
+### Watch Mode
+
+To run the application in watch mode for development:
+
+```bash
+npm run start:dev
+```
+
 ## License
 
 This project is licensed under the MIT License.
 ```
 
-This README provides an overview of the application's functionality, installation steps, running instructions, and detailed information about the API endpoints, environment variables, DTOs, and service methods.
+---
+
+This updated `README.md` includes the necessary details from both the watermark service and Instagram posting service, providing comprehensive instructions for setup, configuration, and usage.

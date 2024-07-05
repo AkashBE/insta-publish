@@ -46,6 +46,9 @@ lerna-debug.log*
 .temp
 .tmp
 
+# templates directory
+/src/templates/*
+
 # Runtime data
 pids
 *.pid
