@@ -6,6 +6,7 @@ module.exports = {
             instances: '1', // or a specific number of instances
             exec_mode: 'cluster', // or 'fork'
             watch: true,
+            autorestart: true,
             env: {
                 NODE_ENV: 'development',
             },

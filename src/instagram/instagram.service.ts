@@ -1,43 +1,55 @@
-// src/instagram/instagram.service.ts
-
 import { Injectable } from '@nestjs/common';
+import { IgApiClient } from 'instagram-private-api';
 import axios from 'axios';
-import { ConfigService } from '@nestjs/config';
-import { User } from './interfaces/user.interface';
+import sharp from 'sharp';
 
 @Injectable()
 export class InstagramService {
-    constructor(private readonly configService: ConfigService) { }
+    private ig: IgApiClient;
 
-    async handleAuthCallback(req): Promise<User> {
-        // Handle authentication callback logic
-        const { accessToken, profile } = req.user;
-        return { accessToken, ...profile };
+    constructor() {
+        this.ig = new IgApiClient();
     }
 
-    async uploadImage(image: Express.Multer.File, caption: string, accessToken: string): Promise<void> {
-        // Convert Buffer to Blob
-        const blob = new Blob([image.buffer], { type: image.mimetype });
+    async login(username: string, password: string): Promise<void> {
+        this.ig.state.generateDevice(username);
+        await this.ig.account.login(username, password);
+    }
 
-        // Create FormData and append data
-        const formData = new FormData();
-        formData.append('image', blob, image.originalname);
-        formData.append('caption', caption);
-
+    async postToInstagram(imageUrl: string, caption: string, tags: string): Promise<void> {
         try {
-            const response = await axios.post('https://graph.instagram.com/me/media', formData, {
-                params: {
-                    access_token: accessToken,
-                },
-                headers: {
-                    'Content-Type': 'multipart/form-data', // Set content type as multipart form data
-                },
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const imageBuffer = Buffer.from(response.data, 'binary');
+            const processedImage = await sharp(imageBuffer)
+                .jpeg()
+                .toBuffer();
+
+            // Construct the caption with multiple lines
+            const fullCaption = `${caption}
+.
+.
+.
+.
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+
+Follow @glowtail.ai for more!  ❤
+
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+
+Hi-Res wallpapers are available in my Kofi page ❤
+.
+.
+.
+.
+#aiart #midjourney ${tags}
+`;
+            await this.ig.publish.photo({
+                file: processedImage,
+                caption: fullCaption.trim(),
             });
 
-            // Handle success or error responses
-            console.log('Instagram API response:', response.data);
         } catch (error) {
-            console.error('Error uploading image to Instagram:', error.response?.data || error.message);
+            console.error('Error posting to Instagram:', error);
             throw error;
         }
     }
