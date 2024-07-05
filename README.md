@@ -1,9 +1,26 @@
-Here's a `README.md` file for your NestJS application with the Instagram and watermark services. This documentation covers setup, configuration, and usage.
-
 ```markdown
 # Instagram Posting Service with Watermark
 
-This NestJS application provides a service to watermark images and post them to Instagram. The service can handle image watermarking with a custom logo and text, and then publish the watermarked image to Instagram.
+This NestJS application provides a service to watermark images and post them to Instagram. The service can handle image watermarking with a custom logo and text, and then publish the watermarked image to Instagram. It includes functionalities to upload images, apply watermarks, manage uploaded and watermarked images, and clear the directories where the images are stored.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the Application](#running-the-application)
+- [API Endpoints](#api-endpoints)
+  - [Upload Image and Apply Watermark](#upload-image-and-apply-watermark)
+  - [Post Image to Instagram](#post-image-to-instagram)
+  - [Clear Directories](#clear-directories)
+- [Environment Variables](#environment-variables)
+- [DTOs](#dtos)
+  - [UploadDto](#uploaddto)
+  - [ClearDirsDto](#cleardirsdto)
+- [Service Methods](#service-methods)
+- [PM2 Setup](#pm2-setup)
+- [Development](#development)
+- [License](#license)
 
 ## Features
 
@@ -12,16 +29,6 @@ This NestJS application provides a service to watermark images and post them to 
 - Read captions from a template file.
 - Swagger UI for API documentation.
 - PM2 configuration for process management.
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [API Endpoints](#api-endpoints)
-- [PM2 Setup](#pm2-setup)
-- [Development](#development)
-- [License](#license)
 
 ## Installation
 
@@ -58,12 +65,15 @@ This NestJS application provides a service to watermark images and post them to 
 Create a `.env` file in the root directory with the following content:
 
 ```env
+NODE_ENV=development
 PORT=4000
 IG_USERNAME=your_instagram_username
 IG_PASSWORD=your_instagram_password
 LOGO_PATH=path_to_logo_file
 LOGO_TEXT=YourLogoText
 CAPTION_TEMPLATE=caption-template.txt
+UPLOADS_DIR=./uploads
+WATERMARK_DIR=./watermarked
 ```
 
 ### Nodemon Configuration
@@ -84,31 +94,38 @@ Create a `nodemon.json` file in the root directory:
 Create a `caption-template.txt` file in the root directory with your caption content:
 
 ```text
-this is a caption. 🌺💪 
+Amidst the serenity of the red flower valley, bravery stands tall. 🌺💪 
+.
+.
+.
+.
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+
+Follow @glowtail.ai for more!  ❤
+
+°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°｡⋆⋆｡°✩₊☾₊✩°
+.
+.
+.
+Hi-Res wallpapers are available on my Kofi page ❤
 .
 .
 .
 .
 .
-.
-.
-.
-.
-.
-.
-.
-#caption #instagram
+
+#aiart #midjourney
 ```
 
-## Usage
+## Running the Application
 
-### Running the Application
-
-Start the application in development mode:
+To start the application, run:
 
 ```bash
 npm run start:dev
 ```
+
+The application will be available at `http://localhost:4000`.
 
 ### Using PM2 for Process Management
 
@@ -124,19 +141,111 @@ pm2 start ecosystem.config.js
 
 Access the Swagger UI for API documentation at: `http://localhost:4000/api`
 
-### Instagram Endpoints
+### Upload Image and Apply Watermark
 
-#### Post Image to Instagram
+- **Endpoint:** `POST /watermark/upload`
+- **Description:** Uploads an image and applies a watermark.
+- **Consumes:** `multipart/form-data`
+- **Request Body:**
+  - `image` (file): The image to upload and watermark.
+  - `text` (string): The text to include in the watermark.
+- **Response:**
+  - `201 Created`: Image watermarked successfully.
+  - `400 Bad Request`: File upload error or no file uploaded.
 
-- **URL**: `/instagram/postImage`
-- **Method**: `POST`
-- **Body**:
+### Post Image to Instagram
+
+- **Endpoint:** `POST /instagram/postImage`
+- **Description:** Posts a watermarked image to Instagram.
+- **Consumes:** `application/json`
+- **Request Body:**
     ```json
     {
       "imageUrl": "https://example.com/image.jpg"
     }
     ```
-- **Response**: `200 OK` with message `Image posted successfully to Instagram!`
+- **Response:**
+  - `200 OK`: Image posted successfully to Instagram.
+  - `500 Internal Server Error`: Error posting image to Instagram.
+
+### Clear Directories
+
+- **Endpoint:** `DELETE /watermark/clear`
+- **Description:** Clears the `uploads` and/or `watermarked` directories based on the selected options.
+- **Request Body:** `ClearDirsDto`
+  - `clearUploads` (boolean): Clear the `uploads` directory (default: true).
+  - `clearWatermarked` (boolean): Clear the `watermarked` directory (default: true).
+- **Response:**
+  - `200 OK`: Selected directories cleared successfully.
+  - `500 Internal Server Error`: Error clearing directories.
+
+## Environment Variables
+
+- `NODE_ENV`: The environment in which the application is running.
+- `PORT`: The port on which the application will run.
+- `IG_USERNAME`: Your Instagram username.
+- `IG_PASSWORD`: Your Instagram password.
+- `LOGO_PATH`: Path to the watermark logo file.
+- `LOGO_TEXT`: Text to include in the watermark.
+- `CAPTION_TEMPLATE`: Path to the caption template file.
+- `UPLOADS_DIR`: The directory where uploaded images are stored.
+- `WATERMARK_DIR`: The directory where watermarked images are stored.
+
+## DTOs
+
+### UploadDto
+
+Used for uploading an image and applying a watermark.
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
+
+export class UploadDto {
+  @ApiProperty({ type: 'string', format: 'binary' })
+  image: any;
+
+  @ApiProperty({ description: 'Text to include in the watermark' })
+  @IsString()
+  text: string;
+}
+```
+
+### ClearDirsDto
+
+Used for selecting which directories to clear.
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsOptional } from 'class-validator';
+
+export class ClearDirsDto {
+  @ApiProperty({ description: 'Clear uploads directory', default: true })
+  @IsOptional()
+  @IsBoolean()
+  clearUploads: boolean;
+
+  @ApiProperty({ description: 'Clear watermarked directory', default: true })
+  @IsOptional()
+  @IsBoolean()
+  clearWatermarked: boolean;
+}
+```
+
+## Service Methods
+
+### WatermarkService
+
+- **applyWatermark(inputPath: string, outputPath: string, text: string): Promise<void>**
+  - Applies a watermark to the uploaded image and saves it to the specified output path.
+
+- **clearDirectories(dirPath: string): Promise<void>**
+  - Clears the specified directory.
+
+### InstagramService
+
+- **postToInstagram(imagePath: string, caption: string): Promise<void>**
+  - Posts the specified image to Instagram with the given caption.
 
 ## PM2 Setup
 
@@ -183,7 +292,9 @@ npm run start:dev
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 ```
 
-Make sure to replace `<repository_url>` and `<repository_directory>` with the appropriate values for your project. This README covers installation, configuration, usage, API endpoints, PM2 setup, and development.
+---
+
+This updated `README.md` includes the necessary details from both the watermark service and Instagram posting service, providing comprehensive instructions for setup, configuration, and usage.
