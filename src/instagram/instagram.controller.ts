@@ -31,47 +31,52 @@ export class InstagramController {
         this.upload = multer({ storage });
     }
 
-    @Post('postImage')
-    @ApiOperation({ summary: 'Post an image to Instagram' })
+    @Post('postImages')
+    @ApiOperation({ summary: 'Post multiple images to Instagram as an album' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
             type: 'object',
             properties: {
-                image: {
-                    type: 'string',
-                    format: 'binary',
+                images: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'binary',
+                    },
                 },
                 caption: { type: 'string', example: 'caption' },
                 tags: { type: 'string', example: 'tags' },
             },
         },
     })
-    @ApiResponse({ status: 200, description: 'Image posted successfully to Instagram!' })
+    @ApiResponse({ status: 200, description: 'Images posted successfully to Instagram!' })
     @ApiResponse({ status: 500, description: 'Internal server error' })
-    async postImageToInstagram(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction): Promise<void> {
-        this.upload.single('image')(req, res, async (err) => {
+    async postImagesToInstagram(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction): Promise<void> {
+        this.upload.array('images')(req, res, async (err) => {
             if (err) {
-                console.error('Error uploading image:', err);
-                res.status(500).send('Failed to upload image');
+                console.error('Error uploading images:', err);
+                res.status(500).send('Failed to upload images');
                 return;
             }
 
             try {
-                const file = req.file;
+                const files = req.files as Express.Multer.File[];
                 const { caption, tags } = req.body;
 
-                if (!file) {
-                    res.status(400).send('No image file provided');
+                if (!files || files.length === 0) {
+                    res.status(400).send('No image files provided');
                     return;
                 }
 
+                const imagePaths = files.map(file => file.path);
+
                 await this.instagramService.login(process.env.IG_USERNAME, process.env.IG_PASSWORD);
-                await this.instagramService.postToInstagram(file.path, caption, tags);
-                res.status(200).send('Image posted successfully to Instagram!');
+                await this.instagramService.postToInstagram(imagePaths, caption, tags);
+                res.status(200).send('Images posted successfully to Instagram!');
             } catch (error) {
-                console.error('Error posting image:', error);
-                res.status(500).send('Failed to post image to Instagram');
+                console.error('Error posting images:', error);
+                res.status(500).send('Failed to post images to Instagram');
             }
         });
     }

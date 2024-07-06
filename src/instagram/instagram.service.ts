@@ -26,31 +26,49 @@ export class InstagramService {
         await this.ig.account.login(username, password);
     }
 
-    async postToInstagram(imagePath: string, caption: string, tags: string): Promise<void> {
+    async postToInstagram(imagePaths: string[], caption: string, tags: string): Promise<void> {
         try {
             const uniqueId = uuidv4();
-            const watermarkedPath = `${this.watermarkDir}/${uniqueId}_watermarked.jpg`; // Change to jpg
+            const watermarkedPaths: string[] = [];
 
-            await this.watermarkService.applyWatermark(imagePath, watermarkedPath);
+            for (const imagePath of imagePaths) {
+                const watermarkedPath = `${this.watermarkDir}/${uniqueId}_${uuidv4()}_watermarked.jpg`; // Change to jpg
+                await this.watermarkService.applyWatermark(imagePath, watermarkedPath);
+                watermarkedPaths.push(watermarkedPath);
+            }
 
-            const imageBuffer = fs.readFileSync(watermarkedPath);
+            const images = await Promise.all(
+                watermarkedPaths.map(async (path) => {
+                    const imageBuffer = fs.readFileSync(path);
 
-            // Convert image to JPEG and ensure it's within allowed size
-            const processedImage = await sharp(imageBuffer)
-                .jpeg() // Convert to JPEG with 80% quality
-                .toBuffer();
+                    // Convert image to JPEG and ensure it's within allowed size
+                    const processedImage = await sharp(imageBuffer)
+                        .jpeg() // Convert to JPEG with 80% quality
+                        .toBuffer();
+
+                    return {
+                        file: processedImage,
+                        width: 1080, // Replace with actual width
+                        height: 1080, // Replace with actual height
+                    };
+                })
+            );
 
             // Construct the caption with multiple lines
             const fullCaption = `${caption}${this.configService.get<string>('CAPTION_TEMPLATE')} ${tags}`;
 
-            await this.ig.publish.photo({
-                file: processedImage,
+            await this.ig.publish.album({
+                items: images.map(image => ({
+                    file: image.file,
+                    width: image.width,
+                    height: image.height,
+                })),
                 caption: fullCaption.trim(),
             });
 
             // Clean up temporary files
-            // fs.unlinkSync(imagePath);
-            // fs.unlinkSync(watermarkedPath);
+            // imagePaths.forEach(fs.unlinkSync);
+            // watermarkedPaths.forEach(fs.unlinkSync);
         } catch (error) {
             console.error('Error posting to Instagram:', error);
             throw error;

@@ -12,6 +12,7 @@ This NestJS application provides a service to watermark images and post them to 
 - [API Endpoints](#api-endpoints)
   - [Upload Image and Apply Watermark](#upload-image-and-apply-watermark)
   - [Post Image to Instagram](#post-image-to-instagram)
+  - [Post Images to Instagram as Album](#post-images-to-instagram-as-album)
   - [Clear Directories](#clear-directories)
 - [Environment Variables](#environment-variables)
 - [DTOs](#dtos)
@@ -26,6 +27,7 @@ This NestJS application provides a service to watermark images and post them to 
 
 - Watermark images with a custom logo and text.
 - Post images to Instagram.
+- Post multiple images to Instagram as an album.
 - Read captions from a template file.
 - Swagger UI for API documentation.
 - PM2 configuration for process management.
@@ -166,6 +168,19 @@ Access the Swagger UI for API documentation at: `http://localhost:4000/api`
   - `200 OK`: Image posted successfully to Instagram.
   - `500 Internal Server Error`: Error posting image to Instagram.
 
+### Post Images to Instagram as Album
+
+- **Endpoint:** `POST /instagram/postImages`
+- **Description:** Posts multiple watermarked images to Instagram as an album.
+- **Consumes:** `multipart/form-data`
+- **Request Body:**
+  - `images` (array of files): The image files to upload and post.
+  - `caption` (string): The caption for the Instagram post.
+  - `tags` (string): The tags for the Instagram post.
+- **Response:**
+  - `200 OK`: Images posted successfully to Instagram.
+  - `500 Internal Server Error`: Error posting images to Instagram.
+
 ### Clear Directories
 
 - **Endpoint:** `DELETE /watermark/clear`
@@ -203,94 +218,4 @@ export class UploadDto {
   @ApiProperty({ type: 'string', format: 'binary' })
   image: any;
 
-  @ApiProperty({ description: 'Text to include in the watermark' })
-  @IsString()
-  text: string;
-}
-```
-
-### ClearDirsDto
-
-Used for selecting which directories to clear.
-
-```typescript
-import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
-
-export class ClearDirsDto {
-  @ApiProperty({ description: 'Clear uploads directory', default: true })
-  @IsOptional()
-  @IsBoolean()
-  clearUploads: boolean;
-
-  @ApiProperty({ description: 'Clear watermarked directory', default: true })
-  @IsOptional()
-  @IsBoolean()
-  clearWatermarked: boolean;
-}
-```
-
-## Service Methods
-
-### WatermarkService
-
-- **applyWatermark(inputPath: string, outputPath: string, text: string): Promise<void>**
-  - Applies a watermark to the uploaded image and saves it to the specified output path.
-
-- **clearDirectories(dirPath: string): Promise<void>**
-  - Clears the specified directory.
-
-### InstagramService
-
-- **postToInstagram(imagePath: string, caption: string, tags: string): Promise<void>**
-  - Posts the specified image to Instagram with the given caption.
-
-## PM2 Setup
-
-### Ecosystem File
-
-Create an `ecosystem.config.js` file in the root directory:
-
-```javascript
-module.exports = {
-  apps: [
-    {
-      name: 'instagram-service',
-      script: 'dist/main.js',
-      watch: true,
-      ignore_watch: ['node_modules', 'src', '.env'],
-      env: {
-        NODE_ENV: 'development',
-      },
-      env_production: {
-        NODE_ENV: 'production',
-      },
-    },
-  ],
-};
-```
-
-### Start with PM2
-
-Start the application with PM2:
-
-```bash
-pm2 start ecosystem.config.js
-```
-
-## Development
-
-### Watch Mode
-
-To run the application in watch mode for development:
-
-```bash
-npm run start:dev
-```
-
-## License
-
-This project is licensed under the MIT License.
-```
-
-This `README.md` file now includes comprehensive instructions for setting up and using the service, including the new endpoint to handle file uploads for posting images to Instagram.
+  @ApiProperty({ description: 'Text to include in the
