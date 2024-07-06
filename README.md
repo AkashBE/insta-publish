@@ -157,13 +157,11 @@ Access the Swagger UI for API documentation at: `http://localhost:4000/api`
 
 - **Endpoint:** `POST /instagram/postImage`
 - **Description:** Posts a watermarked image to Instagram.
-- **Consumes:** `application/json`
+- **Consumes:** `multipart/form-data`
 - **Request Body:**
-    ```json
-    {
-      "imageUrl": "https://example.com/image.jpg"
-    }
-    ```
+  - `image` (file): The image file to upload and post.
+  - `caption` (string): The caption for the Instagram post.
+  - `tags` (string): The tags for the Instagram post.
 - **Response:**
   - `200 OK`: Image posted successfully to Instagram.
   - `500 Internal Server Error`: Error posting image to Instagram.
@@ -244,7 +242,7 @@ export class ClearDirsDto {
 
 ### InstagramService
 
-- **postToInstagram(imagePath: string, caption: string): Promise<void>**
+- **postToInstagram(imagePath: string, caption: string, tags: string): Promise<void>**
   - Posts the specified image to Instagram with the given caption.
 
 ## PM2 Setup
@@ -295,6 +293,4 @@ npm run start:dev
 This project is licensed under the MIT License.
 ```
 
----
-
-This updated `README.md` includes the necessary details from both the watermark service and Instagram posting service, providing comprehensive instructions for setup, configuration, and usage.
+This `README.md` file now includes comprehensive instructions for setting up and using the service, including the new endpoint to handle file uploads for posting images to Instagram.
