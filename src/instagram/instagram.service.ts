@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class InstagramService {
     private readonly uploadsDir: string;
     private readonly watermarkDir: string;
+    private readonly captionTemplate: string;
     private ig: IgApiClient;
 
     constructor(
@@ -18,6 +19,7 @@ export class InstagramService {
     ) {
         this.uploadsDir = this.configService.get<string>('UPLOADS_DIR');
         this.watermarkDir = this.configService.get<string>('WATERMARK_DIR');
+        this.captionTemplate = this.configService.get<string>('CAPTION_TEMPLATE');
         this.ig = new IgApiClient();
     }
 
@@ -32,7 +34,7 @@ export class InstagramService {
             const watermarkedPaths: string[] = [];
 
             for (const imagePath of imagePaths) {
-                const watermarkedPath = `${this.watermarkDir}/${uniqueId}_${uuidv4()}_watermarked.jpg`; // Change to jpg
+                const watermarkedPath = `${this.watermarkDir}/${uniqueId}_${uuidv4()}_watermarked.jpg`;
                 await this.watermarkService.applyWatermark(imagePath, watermarkedPath);
                 watermarkedPaths.push(watermarkedPath);
             }
@@ -41,21 +43,20 @@ export class InstagramService {
                 watermarkedPaths.map(async (path) => {
                     const imageBuffer = fs.readFileSync(path);
 
-                    // Convert image to JPEG and ensure it's within allowed size
                     const processedImage = await sharp(imageBuffer)
-                        .jpeg() // Convert to JPEG with 80% quality
+                        .jpeg()
                         .toBuffer();
 
                     return {
                         file: processedImage,
-                        width: 1080, // Replace with actual width
-                        height: 1080, // Replace with actual height
+                        width: 1080,
+                        height: 1080,
                     };
                 })
             );
 
-            // Construct the caption with multiple lines
-            const fullCaption = `${caption}${this.configService.get<string>('CAPTION_TEMPLATE')} ${tags}`;
+            const captionTemplate = fs.readFileSync(this.captionTemplate, 'utf-8');
+            const fullCaption = `${caption}${captionTemplate} ${tags}`;
 
             await this.ig.publish.album({
                 items: images.map(image => ({
